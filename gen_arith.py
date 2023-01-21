@@ -32,7 +32,7 @@ def prio(op):
     if op == PAREN:
         return 99;
 
-def is_comm(op):
+def is_associative(op):
     if op == ADD or op == MUL:
         return True;
     if op == SUB or op == DIV:
@@ -141,7 +141,7 @@ def wrap_low_prio_left(t, this_op):
 
 def wrap_low_prio_right(t, this_op):
     (op, value, text) = t
-    if op != CON and (prio(this_op) > prio(op) or (prio(this_op) == prio(op) and not is_comm(this_op))):
+    if op != CON and (prio(this_op) > prio(op) or (prio(this_op) == prio(op) and not is_associative(this_op))):
         return (PAREN, value, "(" + text + ")")
     return t
 
