@@ -11,7 +11,7 @@ def object_str(o, c):
 
 def gen_problem():
     names = ["Alice", "Bob", "Charlie", "David", "Eve", "Francis", "George", "Hanna", "Igor", "Jessica", "Kate", "Lucy", "Maddie", "Nancy", "Olga", "Peter" ]
-    objects = [ "cat", "dog", "turle", "pig", "cow", "horse", "lion", "tiger", "elephant"]
+    objects = [ "cat", "dog", "turtle", "pig", "cow", "horse", "lion", "tiger", "elephant"]
 
     MORE = 0
     LESS = 1
