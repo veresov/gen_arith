@@ -1,18 +1,19 @@
 #Configuration
-con_limit = 99                                # Limit on constants (how big individual constant terms can get)
-result_limit = 100                            # Limit on the result value
+con_limit = 15                                # Limit on constants (how big individual constant terms can get)
+result_limit = 200                            # Limit on the result value
 mul_result_limit = 100                        # Limit on a result of any multiplication
-terms = 3                                     # How many terms are in the expression
+terms = 5                                     # How many terms are in the expression (upper limit)
 allow_add = True                              # +
-allow_sub = False                             # -
-allow_mul = False                             # *
+allow_sub = True                             # -
+allow_mul = True                             # *
 allow_div = False                             # /
-allow_paren = False                           # ()
+allow_paren = True                           # ()
 print_answers = False                         # Prints answers after excercises
 print_line_numbers = False                    # Useful if printing answers
 
 
 import random
+import math
 import sys
 
 ADD = 0
@@ -69,30 +70,44 @@ def root(term_limit, value_limit, not_paren):
             return paren(term_limit, value_limit)
     return ""
 
+def one():
+    return (CON, 1, "1");
+
 def con(value_limit):
     v = random.randint(0, value_limit)
     return (CON, v, str(v))
 
 def add(term_limit, value_limit):
     n = int(term_limit / 2)
-    l = int(value_limit / 2)
+    l = int(random.randint(0, value_limit))
     (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), ADD)
+    l = value_limit - l
     (_, rvalue, rtext) = wrap_low_prio_right(root(term_limit - n, l, False), ADD)
     return (ADD, lvalue + rvalue, ltext + " + " + rtext)
 
 def sub(term_limit, value_limit):
     n = int(term_limit / 2)
-    l = int(value_limit / 2)
+    l = int(random.randint(0, value_limit))
     (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), SUB)
+    l = value_limit - l
     (_, rvalue, rtext) = wrap_negative_con(wrap_low_prio_right(root(term_limit - n, l, False), SUB))
     return (SUB, lvalue - rvalue, ltext + " - " + rtext)
 
 def mul(term_limit, value_limit):
     n = int(term_limit / 2)
-    (_, lvalue, ltext) = wrap_low_prio_left(root(n, value_limit, False), MUL)
+    l = int(random.randint(0, int(math.sqrt(value_limit))))
+    (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), MUL)
+    if lvalue == 0 and value_limit > 0:
+        (_, lvalue, ltext) = con(value_limit)
+        if lvalue == 0:
+            (_, lvalue, ltext) = one()
     if lvalue != 0:
-        value_limit = int(value_limit / abs(lvalue))
-    (_, rvalue, rtext) = wrap_low_prio_right(root(term_limit - n, value_limit, False), MUL)
+        l = int(value_limit / abs(lvalue))
+    (_, rvalue, rtext) = wrap_low_prio_right(root(term_limit - n, l, False), MUL)
+    if rvalue == 0 and value_limit > 0:
+        (_, rvalue, rtext) = con(l)
+        if rvalue == 0:
+            (_, rvalue, rtext) = one()
     return (MUL, lvalue * rvalue, ltext + " * " + rtext)
 
 def div(term_limit, value_limit):
