@@ -2,12 +2,14 @@
 con_limit = 15                                # Limit on constants (how big individual constant terms can get)
 result_limit = 200                            # Limit on the result value
 mul_result_limit = 100                        # Limit on a result of any multiplication
+div_denominator_limit = 5                     # Limit on the denominator
 terms = 5                                     # How many terms are in the expression (upper limit)
 allow_add = True                              # +
-allow_sub = True                             # -
-allow_mul = True                             # *
-allow_div = False                             # /
-allow_paren = True                           # ()
+allow_sub = True                              # -
+allow_mul = True                              # *
+allow_div = True                              # /
+allow_paren = True                            # ()
+wrap_num = True                               # Put parenthesis around numerator to disambiguate left associativity
 print_answers = False                         # Prints answers after excercises
 print_line_numbers = False                    # Useful if printing answers
 
@@ -113,7 +115,7 @@ def mul(term_limit, value_limit):
 def div(term_limit, value_limit):
     n = int(term_limit / 2)
     l = root(n, value_limit, False)
-    r = root(term_limit - n, value_limit, False)
+    r = root(term_limit - n, min(div_denominator_limit, value_limit), False)
 
     # Make sure the result is > 1. Swap left and right if necessary
     if l[1] < r[1]:
@@ -150,13 +152,19 @@ def wrap_negative_con(t):
 
 def wrap_low_prio_left(t, this_op):
     (op, value, text) = t
-    if op != CON and prio(this_op) > prio(op):
+    if op == CON:
+        return t;
+    if prio(this_op) > prio(op):
+        return (PAREN, value, "(" + text + ")")
+    if wrap_num and this_op == DIV and op != PAREN:
         return (PAREN, value, "(" + text + ")")
     return t
 
 def wrap_low_prio_right(t, this_op):
     (op, value, text) = t
-    if op != CON and (prio(this_op) > prio(op) or (prio(this_op) == prio(op) and not is_associative(this_op))):
+    if op == CON:
+        return t;
+    if prio(this_op) > prio(op) or (prio(this_op) == prio(op) and (not is_associative(this_op) or not is_associative(op))):
         return (PAREN, value, "(" + text + ")")
     return t
 
