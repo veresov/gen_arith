@@ -1,8 +1,8 @@
 #Configuration
-con_limit = 15                                # Limit on constants (how big individual constant terms can get)
-result_limit = 200                            # Limit on the result value
+con_limit = 25                                # Limit on constants (how big individual constant terms can get)
+result_limit = 300                            # Limit on the result value
 mul_result_limit = 100                        # Limit on a result of any multiplication
-div_denominator_limit = 5                     # Limit on the denominator
+div_denominator_limit = 6                     # Limit on the denominator
 terms = 5                                     # How many terms are in the expression (upper limit)
 allow_add = True                              # +
 allow_sub = True                              # -
@@ -76,7 +76,7 @@ def one():
     return (CON, 1, "1");
 
 def con(value_limit):
-    v = random.randint(0, value_limit)
+    v = random.randint(0, min(value_limit, con_limit))
     return (CON, v, str(v))
 
 def add(term_limit, value_limit):
