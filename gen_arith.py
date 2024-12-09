@@ -1,9 +1,9 @@
 #Configuration
-con_limit = 25                                # Limit on constants (how big individual constant terms can get)
-result_limit = 300                            # Limit on the result value
-mul_result_limit = 100                        # Limit on a result of any multiplication
-div_denominator_limit = 6                     # Limit on the denominator
-terms = 5                                     # How many terms are in the expression (upper limit)
+con_limit = 100                               # Limit on constants (how big individual constant terms can get)
+result_limit = 999                            # Limit on the result value
+mul_result_limit = 600                        # Limit on a result of any multiplication
+div_denominator_limit = 100                   # Limit on the denominator
+terms = 4                                     # How many terms are in the expression (upper limit)
 allow_add = True                              # +
 allow_sub = True                              # -
 allow_mul = True                              # *
@@ -11,7 +11,10 @@ allow_div = True                              # /
 allow_paren = True                            # ()
 wrap_num = True                               # Put parenthesis around numerator to disambiguate left associativity
 print_answers = False                         # Prints answers after excercises
-print_line_numbers = False                    # Useful if printing answers
+print_line_numbers = True                     # Useful if printing answers
+equation = False                              # Generate equations instead of number sentenses
+spacing = 2                                   # Number of empty lines in between
+expression = False                            # Simplify expression mode
 
 
 import random
@@ -24,9 +27,26 @@ MUL = 2
 DIV = 3
 PAREN = 4
 CON = 5
+VAR = 6
+DEAD = 666
+
+equation_variable = (DEAD, "", 0, True)
+
+def random_boolean():
+    return random.choice([0,1]) == 1
+
+def set_equation_variable(node):
+    global equation_variable
+    equation_variable = node
+
+def has_equation_variable():
+    (op, _, _, _) = equation_variable
+    if op == DEAD:
+        return False
+    return True
 
 def prio(op):
-    if op == CON:
+    if op == CON or op == VAR:
         return 0;
     if op == ADD or op == SUB:
         return 1;
@@ -42,10 +62,16 @@ def is_associative(op):
         return False;
     return False
 
-
 def root(term_limit, value_limit, not_paren):
     if term_limit <= 1:
-        return con(min(value_limit, con_limit))
+        if equation and not has_equation_variable():
+            x = var(min(value_limit, con_limit), "x")
+            set_equation_variable(x)
+            return x
+        elif expression and random_boolean():
+            return var(min(value_limit, con_limit), random.choice(["x","y","z"]))
+        else:
+            return con(min(value_limit, con_limit))
     else:
         ops = []
         if allow_add:
@@ -73,44 +99,65 @@ def root(term_limit, value_limit, not_paren):
     return ""
 
 def one():
-    return (CON, 1, "1");
+    return (CON, 1, "1", False);
 
 def con(value_limit):
     v = random.randint(0, min(value_limit, con_limit))
-    return (CON, v, str(v))
+    return (CON, v, str(v), False)
+
+def var(value_limit, name):
+    (_, value, _, _) = con(value_limit)
+    return (VAR, value, name, True)
 
 def add(term_limit, value_limit):
     n = int(term_limit / 2)
-    l = int(random.randint(0, value_limit))
-    (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), ADD)
-    l = value_limit - l
-    (_, rvalue, rtext) = wrap_low_prio_right(root(term_limit - n, l, False), ADD)
-    return (ADD, lvalue + rvalue, ltext + " + " + rtext)
+    v = int(random.randint(0, value_limit))
+    l = root(n, v, False)
+    r = root(term_limit - n, value_limit - v, False)
+    if random_boolean():
+        t = l
+        l = r
+        r = t
+    (_, lvalue, ltext, lvar) = wrap_low_prio_left(l, ADD)
+    (_, rvalue, rtext, rvar) = wrap_low_prio_right(r, ADD)
+    return (ADD, lvalue + rvalue, ltext + " + " + rtext, lvar or rvar)
 
 def sub(term_limit, value_limit):
     n = int(term_limit / 2)
     l = int(random.randint(0, value_limit))
-    (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), SUB)
+    (_, lvalue, ltext, lvar) = wrap_low_prio_left(root(n, l, False), SUB)
     l = value_limit - l
-    (_, rvalue, rtext) = wrap_negative_con(wrap_low_prio_right(root(term_limit - n, l, False), SUB))
-    return (SUB, lvalue - rvalue, ltext + " - " + rtext)
+    (_, rvalue, rtext, rvar) = wrap_negative_con(wrap_low_prio_right(root(term_limit - n, l, False), SUB))
+    return (SUB, lvalue - rvalue, ltext + " - " + rtext, lvar or rvar)
 
 def mul(term_limit, value_limit):
     n = int(term_limit / 2)
-    l = int(random.randint(0, int(math.sqrt(value_limit))))
-    (_, lvalue, ltext) = wrap_low_prio_left(root(n, l, False), MUL)
-    if lvalue == 0 and value_limit > 0:
-        (_, lvalue, ltext) = con(value_limit)
+    v = int(random.randint(0, int(math.sqrt(value_limit))))
+    l = root(n, v, False)
+    (lop, lvalue, ltext, lvar) = l
+    if lvalue == 0 and value_limit > 0 and lvar == False:
+        l = con(value_limit)
         if lvalue == 0:
-            (_, lvalue, ltext) = one()
+            l = one()
+
     if lvalue != 0:
-        l = int(value_limit / abs(lvalue))
-    (_, rvalue, rtext) = wrap_low_prio_right(root(term_limit - n, l, False), MUL)
-    if rvalue == 0 and value_limit > 0:
-        (_, rvalue, rtext) = con(l)
+        v = int(value_limit / abs(lvalue))
+    r = root(term_limit - n, v, False)
+    (rop, rvalue, rtext, rvar) = r
+    if rvalue == 0 and value_limit > 0 and rvar == False:
+        r = con(v)
         if rvalue == 0:
-            (_, rvalue, rtext) = one()
-    return (MUL, lvalue * rvalue, ltext + " * " + rtext)
+            r = one()
+
+    if random_boolean():
+        t = l
+        l = r
+        r = t
+
+    (lop, lvalue, ltext, lvar) = wrap_low_prio_left(l, MUL)
+    (rop, rvalue, rtext, rvar) = wrap_low_prio_right(r, MUL)
+
+    return (MUL, lvalue * rvalue, ltext + " * " + rtext, lvar or rvar)
 
 def div(term_limit, value_limit):
     n = int(term_limit / 2)
@@ -123,13 +170,17 @@ def div(term_limit, value_limit):
         r = l
         l = t
 
-    (_, lvalue, ltext) = wrap_low_prio_left(l, DIV)
-    (_, rvalue, rtext) = wrap_low_prio_right(r, DIV)
+    (lop, lvalue, ltext, lvar) = wrap_low_prio_left(l, DIV)
+    (rop, rvalue, rtext, rvar) = wrap_low_prio_right(r, DIV)
 
-    # Avoid divisions by zero, replace the right part with 1
+    # Avoid divisions by zero,
     if rvalue == 0:
-        rvalue = 1
-        rtext = "1"
+        if rvar != True:
+            # replace the right part with 1
+            rvalue = 1
+            rtext = "1"
+        else:
+            return (lop, lvalue, ltext, lvar)
 
     # Subtract the remainder from the left part so that it divides evenly
     remainder = int(lvalue % rvalue)
@@ -138,34 +189,34 @@ def div(term_limit, value_limit):
         sign = " - " if remainder > 0 else " + "
         ltext = "(" + ltext + sign + str(abs(remainder)) + ")"
 
-    return (DIV, int(lvalue / rvalue), ltext + " / " + rtext)
+    return (DIV, int(lvalue / rvalue), ltext + " / " + rtext, lvar or rvar)
 
 def paren(term_limit, value_limit):
     v = root(term_limit, value_limit, True)
-    return (PAREN, v[1], "(" + v[2]  + ")")
+    return (PAREN, v[1], "(" + v[2]  + ")", v[3])
 
 def wrap_negative_con(t):
-    (op, value, text) = t
+    (op, value, text, var) = t
     if op == CON and value < 0:
-        return (PAREN, value, "(" + text + ")")
+        return (PAREN, value, "(" + text + ")", var)
     return t
 
 def wrap_low_prio_left(t, this_op):
-    (op, value, text) = t
-    if op == CON:
+    (op, value, text, var) = t
+    if op == CON or op == VAR:
         return t;
     if prio(this_op) > prio(op):
-        return (PAREN, value, "(" + text + ")")
+        return (PAREN, value, "(" + text + ")", var)
     if wrap_num and this_op == DIV and op != PAREN:
-        return (PAREN, value, "(" + text + ")")
+        return (PAREN, value, "(" + text + ")", var)
     return t
 
 def wrap_low_prio_right(t, this_op):
-    (op, value, text) = t
-    if op == CON:
+    (op, value, text, var) = t
+    if op == CON or op == VAR:
         return t;
     if prio(this_op) > prio(op) or (prio(this_op) == prio(op) and (not is_associative(this_op) or not is_associative(op))):
-        return (PAREN, value, "(" + text + ")")
+        return (PAREN, value, "(" + text + ")", var)
     return t
 
 def line_number_str(i):
@@ -175,9 +226,16 @@ results = []
 num_lines = 25 if len(sys.argv) <= 1 else int(sys.argv[1])
 
 for i in range(1, num_lines + 1):
-    (_, value, text) = root(terms, result_limit, True)
-    print(line_number_str(i) + text + " = ")
-    results.append(value)
+    (_, value, text, _) = root(terms, result_limit, True)
+    print(line_number_str(i) + text + " = " + (str(value) if equation else ""))
+    if equation:
+        (_, x, _, _) = equation_variable
+        results.append(x)
+        set_equation_variable((DEAD, 0, "", True))
+    else:
+        results.append(value)
+    for l in range(0, spacing - 1):
+        print("")
 
 if print_answers:
     print("---------------")
